@@ -2,11 +2,20 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as THREE from 'three'
 
 export function useThreeBox(containerRef, options) {
-  const { width, height, depth, rotationX, rotationY, cameraDistance } = options
+  const {
+    width, height, depth,
+    rotationX, rotationY,
+    cameraDistance,
+    backgroundColor,
+    frontImage, sideImage, topImage,
+    showReflection
+  } = options
 
-  let scene, camera, renderer, box, animationId
+  let scene, camera, renderer, box, reflectionBox, animationId
   let isDragging = false
   let previousMousePosition = { x: 0, y: 0 }
+  const textureLoader = new THREE.TextureLoader()
+  const loadedTextures = { front: null, side: null, top: null }
 
   const init = () => {
     if (!containerRef.value) return
@@ -16,7 +25,7 @@ export function useThreeBox(containerRef, options) {
 
     // Scene
     scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x1a1a2e)
+    scene.background = new THREE.Color(backgroundColor.value)
 
     // Camera
     camera = new THREE.PerspectiveCamera(
@@ -40,14 +49,14 @@ export function useThreeBox(containerRef, options) {
     createBox()
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
     scene.add(ambientLight)
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
     directionalLight.position.set(5, 5, 5)
     scene.add(directionalLight)
 
-    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5)
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4)
     directionalLight2.position.set(-5, -5, -5)
     scene.add(directionalLight2)
 
@@ -64,16 +73,102 @@ export function useThreeBox(containerRef, options) {
     animate()
   }
 
-  const createBox = () => {
-    if (box) {
-      scene.remove(box)
-      box.geometry.dispose()
-      if (Array.isArray(box.material)) {
-        box.material.forEach(m => m.dispose())
-      } else {
-        box.material.dispose()
+  const loadTexture = (url) => {
+    return new Promise((resolve) => {
+      if (!url) {
+        resolve(null)
+        return
       }
+      textureLoader.load(
+        url,
+        (texture) => {
+          texture.colorSpace = THREE.SRGBColorSpace
+          resolve(texture)
+        },
+        undefined,
+        () => resolve(null)
+      )
+    })
+  }
+
+  const createMaterials = async () => {
+    // Load textures if URLs provided
+    const [frontTex, sideTex, topTex] = await Promise.all([
+      loadTexture(frontImage.value),
+      loadTexture(sideImage.value),
+      loadTexture(topImage.value)
+    ])
+
+    loadedTextures.front = frontTex
+    loadedTextures.side = sideTex
+    loadedTextures.top = topTex
+
+    const createMaterial = (texture, color) => {
+      if (texture) {
+        return new THREE.MeshPhongMaterial({ map: texture })
+      }
+      return new THREE.MeshPhongMaterial({ color })
     }
+
+    // Order: right, left, top, bottom, front, back
+    return [
+      createMaterial(sideTex, 0x4a90d9),   // right
+      createMaterial(sideTex, 0x4a90d9),   // left
+      createMaterial(topTex, 0x6ab04c),    // top
+      createMaterial(topTex, 0x6ab04c),    // bottom
+      createMaterial(frontTex, 0xe17055),  // front
+      createMaterial(frontTex, 0xe17055)   // back
+    ]
+  }
+
+  const createReflectionMaterials = () => {
+    const createMaterial = (texture, color) => {
+      if (texture) {
+        return new THREE.MeshPhongMaterial({
+          map: texture,
+          transparent: true,
+          opacity: 0.3
+        })
+      }
+      return new THREE.MeshPhongMaterial({
+        color,
+        transparent: true,
+        opacity: 0.3
+      })
+    }
+
+    return [
+      createMaterial(loadedTextures.side, 0x4a90d9),
+      createMaterial(loadedTextures.side, 0x4a90d9),
+      createMaterial(loadedTextures.top, 0x6ab04c),
+      createMaterial(loadedTextures.top, 0x6ab04c),
+      createMaterial(loadedTextures.front, 0xe17055),
+      createMaterial(loadedTextures.front, 0xe17055)
+    ]
+  }
+
+  const disposeBox = (targetBox) => {
+    if (!targetBox) return
+
+    scene.remove(targetBox)
+    targetBox.geometry.dispose()
+    if (Array.isArray(targetBox.material)) {
+      targetBox.material.forEach(m => {
+        if (m.map) m.map.dispose()
+        m.dispose()
+      })
+    } else {
+      if (targetBox.material.map) targetBox.material.map.dispose()
+      targetBox.material.dispose()
+    }
+  }
+
+  const createBox = async () => {
+    // Dispose old boxes
+    disposeBox(box)
+    disposeBox(reflectionBox)
+    box = null
+    reflectionBox = null
 
     const geometry = new THREE.BoxGeometry(
       width.value,
@@ -81,14 +176,7 @@ export function useThreeBox(containerRef, options) {
       depth.value
     )
 
-    const materials = [
-      new THREE.MeshPhongMaterial({ color: 0x4a90d9 }), // right
-      new THREE.MeshPhongMaterial({ color: 0x4a90d9 }), // left
-      new THREE.MeshPhongMaterial({ color: 0x6ab04c }), // top
-      new THREE.MeshPhongMaterial({ color: 0x6ab04c }), // bottom
-      new THREE.MeshPhongMaterial({ color: 0xe17055 }), // front
-      new THREE.MeshPhongMaterial({ color: 0xe17055 })  // back
-    ]
+    const materials = await createMaterials()
 
     box = new THREE.Mesh(geometry, materials)
     box.rotation.x = rotationX.value
@@ -100,6 +188,49 @@ export function useThreeBox(containerRef, options) {
     const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 })
     const wireframe = new THREE.LineSegments(edges, lineMaterial)
     box.add(wireframe)
+
+    // Create reflection if enabled
+    if (showReflection.value) {
+      createReflection()
+    }
+  }
+
+  const createReflection = () => {
+    if (!box) return
+
+    disposeBox(reflectionBox)
+
+    const geometry = new THREE.BoxGeometry(
+      width.value,
+      height.value,
+      depth.value
+    )
+
+    const materials = createReflectionMaterials()
+
+    reflectionBox = new THREE.Mesh(geometry, materials)
+
+    // Position below the main box (mirrored)
+    reflectionBox.position.y = -height.value - 0.01
+    reflectionBox.scale.y = -1 // Flip vertically
+
+    scene.add(reflectionBox)
+  }
+
+  const updateReflection = () => {
+    if (showReflection.value) {
+      if (!reflectionBox) {
+        createReflection()
+      }
+      if (reflectionBox && box) {
+        reflectionBox.rotation.x = -rotationX.value
+        reflectionBox.rotation.y = rotationY.value
+        reflectionBox.position.y = -height.value - 0.01
+      }
+    } else {
+      disposeBox(reflectionBox)
+      reflectionBox = null
+    }
   }
 
   const animate = () => {
@@ -188,11 +319,27 @@ export function useThreeBox(containerRef, options) {
       box.rotation.x = rotationX.value
       box.rotation.y = rotationY.value
     }
+    if (reflectionBox) {
+      reflectionBox.rotation.x = -rotationX.value
+      reflectionBox.rotation.y = rotationY.value
+    }
   }
 
   const updateCameraDistance = () => {
     if (camera) {
       camera.position.z = cameraDistance.value
+    }
+  }
+
+  const updateBackgroundColor = () => {
+    if (scene) {
+      scene.background = new THREE.Color(backgroundColor.value)
+    }
+  }
+
+  const updateTextures = () => {
+    if (box) {
+      createBox()
     }
   }
 
@@ -223,20 +370,17 @@ export function useThreeBox(containerRef, options) {
       renderer.dispose()
     }
 
-    if (box) {
-      box.geometry.dispose()
-      if (Array.isArray(box.material)) {
-        box.material.forEach(m => m.dispose())
-      } else {
-        box.material.dispose()
-      }
-    }
+    disposeBox(box)
+    disposeBox(reflectionBox)
   }
 
   // Watchers
   watch([width, height, depth], updateBoxDimensions)
   watch([rotationX, rotationY], updateRotation)
   watch(cameraDistance, updateCameraDistance)
+  watch(backgroundColor, updateBackgroundColor)
+  watch([frontImage, sideImage, topImage], updateTextures)
+  watch(showReflection, updateReflection)
 
   onMounted(() => {
     init()

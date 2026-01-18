@@ -30,8 +30,18 @@ public/
 
 ### Key Components
 
-- **App.vue**: Contains sidebar with controls (presets, dimensions, rotation, camera distance) and the 3D canvas area
-- **useThreeBox.js**: Composable that manages Three.js scene, camera, renderer, box mesh, drag rotation, and PNG export
+- **App.vue**: Contains sidebar with controls (presets, dimensions, rotation, camera distance, textures, background color, reflection toggle) and the 3D canvas area
+- **useThreeBox.js**: Composable that manages Three.js scene, camera, renderer, box mesh with textures, reflection effect, drag rotation, and PNG export
+
+### Features
+
+- Box dimension controls (width, height, depth)
+- Rotation controls (X/Y axis) with drag interaction
+- Camera distance adjustment
+- Texture support for front, side, and top faces (loaded via FileReader)
+- Background color picker
+- Mirror reflection effect (toggleable)
+- PNG export
 
 ### Preset Configuration
 

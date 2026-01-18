@@ -17,8 +17,8 @@
       "height": 0.911,
       "depth": 0.086,
       "rotationX": 0.0,
-      "rotationY": 0.6,
-      "cameraDistance": 2.0
+      "rotationY": 0.55,
+      "cameraDistance": 1.5
     },
     {
       "name": "cube",
