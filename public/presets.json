@@ -1,0 +1,64 @@
+{
+  "presets": [
+    {
+      "name": "default",
+      "label": "デフォルト",
+      "width": 1,
+      "height": 1,
+      "depth": 1,
+      "rotationX": 0.5,
+      "rotationY": 0.5,
+      "cameraDistance": 2.0
+    },
+    {
+      "name": "poker8_5mm-2",
+      "label": "Tuck Box (poker8_5mm-2)",
+      "width": 0.655,
+      "height": 0.911,
+      "depth": 0.086,
+      "rotationX": 0.0,
+      "rotationY": 0.6,
+      "cameraDistance": 2.0
+    },
+    {
+      "name": "cube",
+      "label": "立方体",
+      "width": 1,
+      "height": 1,
+      "depth": 1,
+      "rotationX": 0.3,
+      "rotationY": 0.4,
+      "cameraDistance": 5
+    },
+    {
+      "name": "tall",
+      "label": "縦長",
+      "width": 1,
+      "height": 2,
+      "depth": 1,
+      "rotationX": 0.3,
+      "rotationY": 0.4,
+      "cameraDistance": 6
+    },
+    {
+      "name": "wide",
+      "label": "横長",
+      "width": 2,
+      "height": 1,
+      "depth": 1,
+      "rotationX": 0.3,
+      "rotationY": 0.4,
+      "cameraDistance": 6
+    },
+    {
+      "name": "flat",
+      "label": "平たい",
+      "width": 2,
+      "height": 0.5,
+      "depth": 2,
+      "rotationX": 0.6,
+      "rotationY": 0.3,
+      "cameraDistance": 6
+    }
+  ]
+}
